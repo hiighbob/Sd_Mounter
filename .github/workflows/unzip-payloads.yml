@@ -15,18 +15,20 @@ jobs:
       - name: Extract zips
         if: hashFiles('.extract-done') == '' && hashFiles('sd-mounter-v1.5.zip') != ''
         run: |
+          set -x
           unzip -o sd-mounter-v1.5.zip -d .
           mkdir -p skill-magisk-module-builder
           unzip -o magisk-module-builder.skill.zip -d skill-magisk-module-builder
           touch .extract-done
+          echo "EXTRACTED_OK" > .workflow-status.txt
+          { echo "== zip contents =="; unzip -l sd-mounter-v1.5.zip; echo "== skill contents =="; unzip -l magisk-module-builder.skill.zip; } >> .workflow-status.txt
 
       - name: Commit extracted payload
-        if: hashFiles('.extract-done') != '' && github.event.commits[0].author.name != 'unzip-bot'
-        shell: bash
         run: |
-          if [ -z "$(git status --porcelain)" ]; then echo "nothing to commit"; exit 0; fi
           git config user.name "unzip-bot"
           git config user.email "unzip-bot@users.noreply.github.com"
           git add -A
+          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
           git commit -m "Extract sd-mounter-v1.5.zip and magisk-module-builder.skill"
+          git pull --rebase origin main || true
           git push
