@@ -21,7 +21,15 @@ jobs:
           set -x
           unzip -o sd-mounter-v1.5.zip -d .
           mkdir -p skill-magisk-module-builder
-          unzip -o magisk-module-builder.skill.zip -d skill-magisk-module-builder
+          python3 - <<'EOF' 2>&1 | tee .skill-extract-err.txt
+          import zipfile, sys
+          try:
+              with zipfile.ZipFile('magisk-module-builder.skill') as z:
+                  z.extractall('skill-magisk-module-builder')
+                  print("SKILL_EXTRACT_OK", z.namelist())
+          except Exception as e:
+              print("SKILL_EXTRACT_FAIL", repr(e)); sys.exit(1)
+          EOF
           touch .extract-done
 
       - name: Status + commit (always)
