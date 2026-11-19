@@ -1,8 +1,10 @@
-EVENT=push SHA=4603841864758edd24563f70c4b2e75955df3d5f
-checkout=success extract=failure/success
-marker=absent
+EVENT=push SHA=cc74c9ee1e4670da5739973966a6b6df6cb5915e
+checkout=success extract=success/success
+marker=present
+.extract-done
 .git
 .github
+.skill-extract-err.txt
 .workflow-status.txt
 CHANGELOG.md
 Log
