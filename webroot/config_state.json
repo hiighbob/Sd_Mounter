@@ -1,0 +1,6 @@
+{
+  "auto_run_on_boot":   true,
+  "boot_delay_sec":     15,
+  "media_scan_on_boot": false,
+  "log_verbose":        true
+}

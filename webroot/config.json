@@ -1,0 +1,9 @@
+{
+  "name": "SD Mounter",
+  "icon": "💾",
+  "id": "sd-mounter",
+  "minApi": 28,
+  "windowResize": true,
+  "allowedFsApi": true,
+  "inject": []
+}

@@ -1,0 +1,7 @@
+id=sd-mounter
+name=SD Mounter
+version=v1.5
+versionCode=6
+author=local
+description=Adaptatif: vold ou sdfat pour exFAT. ext4+bind-mounts au boot. Fix MBR integre (p1 0x07->0x0c). SM-A530W.
+minMagisk=26000

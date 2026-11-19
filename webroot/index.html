@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SD Mounter</title>
+<style>
+/* === DESIGN TOKENS (SKILL V5) === */
+:root {
+  --bg:      #0d0f14;  --surface: #151820;  --card:   #1c2030;
+  --border:  #252a38;  --accent:  #00d4aa;  --accent2:#82aaff;
+  --warn:    #ffb340;  --err:     #ff5370;
+  --text:    #e2e8f0;  --muted:   #5a6380;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+  --sans: 'Syne', system-ui, sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;padding:0 0 80px;}
+
+/* === HEADER (sticky) === */
+.header{background:linear-gradient(135deg,#0d1520,#0d0f14);border-bottom:1px solid var(--border);
+        padding:20px 16px 14px;position:sticky;top:0;z-index:100;}
+.header-title{font-size:19px;font-weight:800;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:3px;}
+
+/* === TABS (sticky) === */
+.tabs{display:flex;gap:4px;padding:10px 16px 0;border-bottom:1px solid var(--border);
+      background:var(--bg);position:sticky;top:66px;z-index:99;}
+.tab{flex:1;padding:8px 4px;font-size:11px;font-weight:600;text-align:center;
+     border:none;background:transparent;color:var(--muted);cursor:pointer;
+     border-bottom:2px solid transparent;transition:all .2s;
+     text-transform:uppercase;letter-spacing:.5px;font-family:var(--sans);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* === PAGES === */
+.page{display:none;padding:14px;}
+.page.active{display:block;}
+
+/* === CARDS === */
+.card{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:14px;margin-bottom:12px;}
+.card-title{font-size:10px;font-weight:600;text-transform:uppercase;
+            letter-spacing:1px;color:var(--muted);margin-bottom:10px;
+            font-family:var(--mono);}
+
+/* === BADGES === */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;
+       border-radius:20px;font-size:11px;font-family:var(--mono);font-weight:700;}
+.badge::before{content:'●';font-size:8px;}
+.badge-ok  {background:#00d4aa22;color:var(--accent);}
+.badge-warn{background:#ffb34022;color:var(--warn);}
+.badge-err {background:#ff537022;color:var(--err);}
+.badge-off {background:#ffffff11;color:var(--muted);}
+
+/* === STATUS ROWS === */
+.status-row{display:flex;align-items:center;justify-content:space-between;
+            padding:8px 0;border-bottom:1px solid var(--border);}
+.status-row:last-child{border-bottom:none;padding-bottom:0;}
+.status-label{font-size:13px;font-weight:600;}
+.status-desc{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* === PROGRESS BAR === */
+.progress-wrap{margin-top:4px;}
+.progress-bar{height:5px;background:var(--surface);border-radius:5px;overflow:hidden;margin-top:4px;}
+.progress-fill{height:100%;background:var(--accent);border-radius:5px;transition:width .4s;}
+
+/* === BUTTONS === */
+.btn{width:100%;padding:12px;border:none;border-radius:10px;font-size:13px;
+     font-weight:600;cursor:pointer;margin-bottom:8px;transition:all .2s;
+     font-family:var(--sans);}
+.btn:active{transform:scale(0.97);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-warn   {background:var(--warn);color:#000;}
+.btn-danger {background:var(--err);color:#fff;}
+.btn-ghost  {background:var(--surface);color:var(--text);border:1px solid var(--border);}
+.btn-sm     {padding:8px 12px;font-size:11px;width:auto;margin-bottom:4px;}
+.btn-row    {display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+
+/* === TERMINAL === */
+.terminal{background:#0a0c10;border:1px solid var(--border);border-radius:8px;
+          padding:10px;font-family:var(--mono);font-size:11px;line-height:1.7;
+          max-height:240px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;}
+.ok  {color:var(--accent);}
+.warn{color:var(--warn);}
+.err {color:var(--err);}
+.dim {color:var(--muted);}
+
+/* === TOGGLE === */
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:var(--surface);border:1px solid var(--border);
+        border-radius:24px;cursor:pointer;transition:.2s;}
+.slider::before{content:'';position:absolute;width:18px;height:18px;left:2px;top:2px;
+                background:var(--muted);border-radius:50%;transition:.2s;}
+input:checked+.slider{background:var(--accent);border-color:var(--accent);}
+input:checked+.slider::before{transform:translateX(20px);background:#000;}
+
+/* === NUMBER INPUT === */
+input[type=number]{width:64px;padding:6px 8px;background:var(--surface);
+                   border:1px solid var(--border);border-radius:6px;
+                   color:var(--text);font-size:13px;text-align:center;}
+
+/* === LOG SELECTOR === */
+.log-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.lt{padding:5px 12px;font-size:11px;border-radius:20px;border:1px solid var(--border);
+    background:var(--surface);color:var(--muted);cursor:pointer;font-family:var(--mono);}
+.lt.active{border-color:var(--accent);color:var(--accent);}
+
+/* === SPINNER === */
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid currentColor;
+         border-top-color:transparent;border-radius:50%;
+         animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* === TOAST === */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);
+       background:var(--card);border:1px solid var(--border);color:var(--text);
+       padding:10px 18px;border-radius:20px;font-size:12px;opacity:0;
+       transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.ok  {border-color:var(--accent);color:var(--accent);}
+#toast.warn{border-color:var(--warn);color:var(--warn);}
+#toast.err {border-color:var(--err);color:var(--err);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">💾 SD Mounter</div>
+  <div class="header-sub">v1.4 · SM-A530W · <span id="last-refresh">tap Statut</span></div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" data-tab="status">Statut</button>
+  <button class="tab" data-tab="actions">Actions</button>
+  <button class="tab" data-tab="config">Config</button>
+  <button class="tab" data-tab="logs">Logs</button>
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════ STATUT ═══════════ -->
+<div id="tab-status" class="page active">
+
+  <div class="card">
+    <div class="card-title">Partitions SD</div>
+    <div class="status-row">
+      <div><div class="status-label">exFAT (mmcblk1p1)</div><div class="status-desc">/mnt/media_rw/6603-7A19</div></div>
+      <span class="badge badge-off" id="b-p1">…</span>
+    </div>
+    <div class="status-row">
+      <div><div class="status-label">ext4 (mmcblk1p2)</div><div class="status-desc">/mnt/ext4sd</div></div>
+      <span class="badge badge-off" id="b-p2">…</span>
+    </div>
+    <div class="status-row">
+      <div><div class="status-label">/storage/ bind</div><div class="status-desc">/storage/6603-7A19 → exFAT visible apps</div></div>
+      <span class="badge badge-off" id="b-stor">…</span>
+    </div>
+    <div class="status-row">
+      <div><div class="status-label">Source exFAT</div><div class="status-desc">vold (MBR fix) ou sdfat (module)</div></div>
+      <span class="badge badge-off" id="b-exfat-src">…</span>
+    </div>
+    <div class="status-row">
+      <div><div class="status-label">MBR p1 type</div><div class="status-desc">0x0c=fix actif, 0x07=HiddenMount</div></div>
+      <span class="badge badge-off" id="b-mbr">…</span>
+    </div>
+    <div class="status-row">
+      <div><div class="status-label">ext4 libre</div><div class="status-desc">espace disponible</div></div>
+      <span class="badge badge-off" id="b-free">…</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Bind-mounts /data/app</div>
+    <div class="progress-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);">
+        <span id="bm-app-label" style="color:var(--muted)">… / …</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="bm-app-fill" style="width:0%"></div></div>
+    </div>
+    <div class="card-title" style="margin-top:14px;">Bind-mounts /data/data</div>
+    <div class="progress-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);">
+        <span id="bm-data-label" style="color:var(--muted)">… / …</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="bm-data-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Probe brut</div>
+    <div id="probe-out" class="terminal">tap Refresh…</div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-ghost btn-sm" id="btn-refresh">⟳ Refresh</button>
+      <button class="btn btn-ghost btn-sm" onclick="copyEl('probe-out')">Copy</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">vold volumes</div>
+    <div id="vold-out" class="terminal" style="max-height:100px;">…</div>
+  </div>
+
+</div>
+
+<!-- ═══════════ ACTIONS ═══════════ -->
+<div id="tab-actions" class="page">
+
+  <div id="run-card" class="card" style="display:none;">
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-family:var(--mono);">
+      <span class="spinner"></span><span id="run-msg">En cours…</span>
+    </div>
+    <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" id="run-fill" style="width:0%;transition:width 8s linear;"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Montage</div>
+    <button class="btn btn-primary" data-step="all">▶ Tout monter (adaptatif + ext4 + binds)</button>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" data-step="exfat">💿 exFAT</button>
+      <button class="btn btn-ghost btn-sm" data-step="ext4">🗄 ext4</button>
+      <button class="btn btn-ghost btn-sm" data-step="bind">🔗 Binds</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Maintenance</div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" data-step="chown">🔑 Corriger UIDs</button>
+      <button class="btn btn-ghost btn-sm" data-step="notify">📢 Scan média SD</button>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--warn)">
+    <div class="card-title" style="color:var(--warn)">🔧 Fix MBR (one-time)</div>
+    <p style="font-size:11px;color:var(--muted);margin:6px 14px 10px;line-height:1.5;">Change le type de partition p1 (0x07→0x0c). vold reconnait la SD et /storage/6603-7A19 devient accessible en écriture. Reboot requis. Zero risque data.</p>
+    <div class="btn-row">
+      <button class="btn btn-warn btn-sm" id="btn-fix-mbr">⚡ Appliquer fix MBR + Reboot</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--warn);">⚠ Démontage</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">Fermer toutes les apps utilisant la SD avant de démonter.</p>
+    <button class="btn btn-warn btn-sm" id="btn-unmount">⏏ Tout démonter</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Système</div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" id="btn-reboot">↺ Reboot</button>
+      <button class="btn btn-ghost btn-sm" id="btn-clearlogs">🗑 Clear logs</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════ CONFIG ═══════════ -->
+<div id="tab-config" class="page">
+
+  <div class="card">
+    <div class="card-title">Boot</div>
+    <div class="status-row">
+      <div class="row-info">
+        <div class="status-label">Auto-run au boot</div>
+        <div class="status-desc">Lance sd_mount.sh après boot_completed.</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="cfg-auto_run_on_boot"><span class="slider"></span></label>
+    </div>
+    <div class="status-row">
+      <div class="row-info">
+        <div class="status-label">Délai boot (s)</div>
+        <div class="status-desc">Marge vold/sm après boot_completed (défaut 15).</div>
+      </div>
+      <input type="number" id="cfg-boot_delay_sec" min="5" max="120" value="15">
+    </div>
+    <div class="status-row">
+      <div class="status-label">Log verbeux</div>
+      <label class="toggle"><input type="checkbox" id="cfg-log_verbose"><span class="slider"></span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" id="btn-cfg-reload">↺ Recharger</button>
+      <button class="btn btn-primary btn-sm" id="btn-cfg-save">💾 Sauvegarder</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Infos</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.8;font-family:var(--mono);">
+      p1 · mmcblk1p1 · exFAT · 6603-7A19 · 39GB<br>
+      p2 · mmcblk1p2 · ext4  · 79743cd4  · 20GB<br>
+      logs · /data/adb/modules/sd-mounter/logs/
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════ LOGS ═══════════ -->
+<div id="tab-logs" class="page">
+  <div class="card">
+    <div class="card-title">Logs</div>
+    <div class="log-tabs" id="log-btns"></div>
+    <div id="log-output" class="terminal">Sélectionne un log.</div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-ghost btn-sm" id="btn-log-refresh">⟳ Refresh</button>
+      <button class="btn btn-ghost btn-sm" id="btn-log-bottom">↓ Bas</button>
+      <button class="btn btn-ghost btn-sm" onclick="copyEl('log-output')">Copy</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── ksu exec bridge ────────────────────────────────────────────────
+// 2e arg = JSON.stringify({cwd:'/'}) OBLIGATOIRE sur ce device
+let _cbId = 0;
+function exec(cmd) {
+  return new Promise((resolve) => {
+    const name = '_cb' + (_cbId++);
+    window[name] = function(code, stdout, stderr) {
+      delete window[name];
+      resolve({ code: parseInt(code), stdout: stdout || '', stderr: stderr || '' });
+    };
+    try {
+      if (typeof ksu !== 'undefined')
+        ksu.exec(cmd, JSON.stringify({cwd: '/'}), name);
+      else
+        resolve({ code: -1, stdout: '', stderr: 'No ksu — ouvrir dans MMRL' });
+    } catch(e) { resolve({ code: -99, stdout: '', stderr: String(e) }); }
+  });
+}
+
+// ── MODDIR — ksu.moduleInfo() lance une exception sur ce device ───
+let MOD = '/data/adb/modules/sd-mounter';
+try {
+  if (typeof ksu !== 'undefined') {
+    const info = JSON.parse(ksu.moduleInfo());
+    if (info && info.moduleDir) MOD = info.moduleDir;
+  }
+} catch(e) {}
+
+// ── Tabs ───────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === btn));
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
+    if (id === 'status') loadStatus();
+    if (id === 'logs')   { buildLogTabs(); loadLog(curLog); }
+    if (id === 'config') loadCfg();
+  });
+});
+
+// ── Toast ──────────────────────────────────────────────────────────
+let _toastTimer;
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.className = '', 3000);
+}
+
+// ── Colorize terminal output ───────────────────────────────────────
+function colorize(text) {
+  return text.split('\n').map(l => {
+    const e = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (/OK\b|exit=0|monté OK|END|FONCTIONNEL/.test(e)) return '<span class="ok">'  + e + '</span>';
+    if (/ERROR|ERREUR|FAIL\b|exit=[^0\s]/.test(e))      return '<span class="err">' + e + '</span>';
+    if (/WARN|SKIP|absent/i.test(e))                     return '<span class="warn">'+ e + '</span>';
+    return '<span class="dim">' + e + '</span>';
+  }).join('\n');
+}
+
+function copyEl(id) {
+  const t = document.getElementById(id);
+  if (!t) return;
+  const txt = t.innerText || t.textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast('Copié'));
+  else toast('Clipboard indispo', 'warn');
+}
+
+// ── Badge helpers ──────────────────────────────────────────────────
+function setBadge(id, text, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'badge ' + cls;
+}
+
+function setProgress(fillId, labelId, cur, max) {
+  const pct = max > 0 ? Math.min(100, Math.round(cur / max * 100)) : 0;
+  const fill = document.getElementById(fillId);
+  const lbl  = document.getElementById(labelId);
+  if (fill) fill.style.width = pct + '%';
+  if (lbl)  lbl.textContent = cur + ' / ' + max + ' montés';
+}
+
+// ── Status ─────────────────────────────────────────────────────────
+async function loadStatus() {
+  document.getElementById('probe-out').innerHTML = '<span class="dim">Sonde en cours…</span>';
+
+  const TMP = '/data/local/tmp/sdm_probe.txt';
+  await exec('sh ' + MOD + '/scripts/sd_probe.sh > ' + TMP + ' 2>&1');
+  const r = await exec('cat ' + TMP + ' 2>/dev/null; rm -f ' + TMP);
+  const raw = r.stdout;
+
+  if (!raw || !raw.trim()) {
+    document.getElementById('probe-out').innerHTML = '<span class="err">Probe vide — vérifier logs/</span>';
+    return;
+  }
+
+  // Parse key=value
+  const kv = {};
+  raw.split('\n').forEach(l => {
+    const i = l.indexOf('=');
+    if (i > 0) kv[l.slice(0, i).trim()] = l.slice(i + 1).trim();
+  });
+
+  const p1ok   = kv.p1_mounted === '1';
+  const p2ok   = kv.p2_mounted === '1';
+  const storOk = kv.storage_bind === 'ok';
+  const appBm  = parseInt(kv.app_bm  || '0', 10);
+  const appExp = parseInt(kv.app_expected || '0', 10);
+  const dataBm = parseInt(kv.data_bm || '0', 10);
+  const dataExp= parseInt(kv.data_expected || '0', 10);
+  const avMb   = parseInt(kv.p2_avail_mb || '0', 10);
+  const usedMb = parseInt(kv.p2_used_mb  || '0', 10);
+
+  setBadge('b-p1',   p1ok   ? 'Monté'  : 'Non monté', p1ok   ? 'badge-ok'  : 'badge-err');
+  setBadge('b-p2',   p2ok   ? 'Monté'  : 'Non monté', p2ok   ? 'badge-ok'  : 'badge-err');
+  setBadge('b-stor', storOk ? 'OK'     : 'Absent',    storOk ? 'badge-ok'  : 'badge-err');
+  const freeGb = avMb > 0 ? (avMb / 1024).toFixed(1) + ' GB' : '–';
+  const freeCls = avMb > 3000 ? 'badge-ok' : avMb > 500 ? 'badge-warn' : 'badge-err';
+  setBadge('b-free', freeGb, freeCls);
+
+  // MBR fix status
+  const mbrFix = kv.mbr_fix || 'unknown';
+  if (mbrFix === 'applied') setBadge('b-mbr', '0x0c ✓ fix actif', 'badge-ok');
+  else if (mbrFix === 'pending') setBadge('b-mbr', '0x07 — fix requis', 'badge-warn');
+  else setBadge('b-mbr', mbrFix, 'badge-off');
+
+  // exFAT source
+  const src = kv.exfat_source || 'none';
+  if (src === 'vold') setBadge('b-exfat-src', 'vold (natif ✓)', 'badge-ok');
+  else if (src === 'sdfat') setBadge('b-exfat-src', 'sdfat (module)', 'badge-warn');
+  else setBadge('b-exfat-src', src === 'none' ? 'non monté' : src, 'badge-off');
+
+  setProgress('bm-app-fill',  'bm-app-label',  appBm,  appExp);
+  setProgress('bm-data-fill', 'bm-data-label', dataBm, dataExp);
+
+  // Probe brut
+  const lines = [
+    'p1 exFAT : ' + (p1ok ? 'monté · ' + (kv.p1_path || '?') : 'non monté'),
+    'p1 vold  : ' + (kv.vold_p1 || '?'),
+    'p2 ext4  : ' + (p2ok ? 'monté · ' + usedMb + 'MB/' + (usedMb + avMb) + 'MB' : 'non monté'),
+    '/storage : ' + (storOk ? kv.p1_path ? '/storage/6603-7A19 OK' : 'OK' : 'absent'),
+    'app BM   : ' + appBm + '/' + appExp,
+    'data BM  : ' + dataBm + '/' + dataExp,
+  ];
+  document.getElementById('probe-out').innerHTML = colorize(lines.join('\n'));
+  document.getElementById('vold-out').textContent = (kv.vold_all || '(vide)').replace(/\|/g, '\n').trim();
+  document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
+}
+
+// ── Actions ────────────────────────────────────────────────────────
+let busy = false;
+const MOUNT_LOG = MOD + '/logs/mount.log';
+
+function setRunCard(show, msg) {
+  const card = document.getElementById('run-card');
+  const fill = document.getElementById('run-fill');
+  const msgEl = document.getElementById('run-msg');
+  card.style.display = show ? 'block' : 'none';
+  if (msgEl) msgEl.textContent = msg || '';
+  if (fill && show) { fill.style.width = '0%'; setTimeout(() => fill.style.width = '95%', 50); }
+  if (fill && !show) fill.style.width = '0%';
+}
+
+async function runStep(step) {
+  if (busy) { toast('Déjà en cours…', 'warn'); return; }
+  busy = true;
+  const labels = { all:'Montage complet…', exfat:'Montage exFAT…', ext4:'Montage ext4…',
+                   bind:'Bind-mounts…', unmount:'Démontage…' };
+  setRunCard(true, labels[step] || step + '…');
+  const r = await exec('sh ' + MOD + '/scripts/sd_mount.sh ' + step + ' >> ' + MOUNT_LOG + ' 2>&1');
+  busy = false;
+  setRunCard(false);
+  toast(step + (r.code === 0 ? ' OK ✓' : ' — voir Logs'), r.code === 0 ? 'ok' : 'warn');
+  setTimeout(loadStatus, 1500);
+}
+
+// Step buttons
+document.querySelectorAll('[data-step]').forEach(btn => {
+  btn.addEventListener('click', () => runStep(btn.dataset.step));
+});
+
+document.getElementById('btn-unmount').addEventListener('click', () => {
+  if (!confirm('Démonter tout ?\n\nFermer toutes les apps SD d\'abord.')) return;
+  runStep('unmount');
+});
+document.getElementById('btn-reboot').addEventListener('click', () => {
+  if (!confirm('Redémarrer maintenant ?')) return;
+  toast('Reboot…', 'warn'); exec('reboot');
+});
+document.getElementById('btn-clearlogs').addEventListener('click', async () => {
+  if (!confirm('Effacer tous les logs ?')) return;
+  await exec('rm -f ' + MOD + '/logs/*.log');
+  toast('Logs effacés');
+});
+document.getElementById('btn-fix-mbr').addEventListener('click', async () => {
+  if (!confirm('Appliquer le fix MBR ?\n\n• Type p1: 0x07 → 0x0c\n• Backup MBR dans /sdcard/Download/\n• Reboot automatique après\n• Zéro risque data\n\nVold gérera ensuite exFAT nativement.')) return;
+  toast('Fix MBR en cours…', 'warn');
+  await runStep('fix-mbr');
+  setTimeout(() => {
+    if (confirm('Fix MBR appliqué. Rebooter maintenant ?')) {
+      toast('Reboot…', 'warn'); exec('reboot');
+    }
+  }, 3000);
+});
+document.getElementById('btn-refresh').addEventListener('click', loadStatus);
+
+// ── Config ─────────────────────────────────────────────────────────
+const CFG_PATH = MOD + '/webroot/config_state.json';
+const CFG_DEFS = { auto_run_on_boot: true, boot_delay_sec: 15, log_verbose: true };
+let cfg = Object.assign({}, CFG_DEFS);
+
+async function loadCfg() {
+  const r = await exec('cat ' + CFG_PATH + ' 2>/dev/null');
+  if (r.code === 0 && r.stdout.trim()) {
+    try { cfg = Object.assign({}, CFG_DEFS, JSON.parse(r.stdout)); } catch(e) {}
+  }
+  Object.keys(cfg).forEach(k => {
+    const el = document.getElementById('cfg-' + k);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = cfg[k] === true || cfg[k] === 'true';
+    else el.value = cfg[k];
+  });
+}
+
+async function saveCfg() {
+  Object.keys(cfg).forEach(k => {
+    const el = document.getElementById('cfg-' + k);
+    if (!el) return;
+    if (el.type === 'checkbox') cfg[k] = el.checked;
+    else if (el.type === 'number') cfg[k] = parseInt(el.value, 10);
+    else cfg[k] = el.value;
+  });
+  const json = JSON.stringify(cfg, null, 2);
+  const r = await exec("cat > " + CFG_PATH + " <<'__EOF__'\n" + json + "\n__EOF__");
+  toast(r.code === 0 ? 'Sauvegardé ✓' : 'Échec', r.code === 0 ? 'ok' : 'err');
+}
+
+document.getElementById('btn-cfg-reload').addEventListener('click', loadCfg);
+document.getElementById('btn-cfg-save').addEventListener('click', saveCfg);
+
+// ── Logs ───────────────────────────────────────────────────────────
+const LOG_NAMES = ['mount', 'service', 'post-fs-data'];
+let curLog = 'mount';
+
+function buildLogTabs() {
+  document.getElementById('log-btns').innerHTML = LOG_NAMES.map(n =>
+    '<button class="lt' + (n === curLog ? ' active' : '') + '" data-log="' + n + '">' + n + '</button>'
+  ).join('');
+  document.querySelectorAll('.lt').forEach(b => {
+    b.addEventListener('click', () => { curLog = b.dataset.log; buildLogTabs(); loadLog(curLog); });
+  });
+}
+
+async function loadLog(name) {
+  curLog = name || 'mount';
+  const el = document.getElementById('log-output');
+  el.innerHTML = '<span class="dim">Chargement…</span>';
+  const r = await exec('tail -300 ' + MOD + '/logs/' + curLog + '.log 2>/dev/null || echo "(vide)"');
+  el.innerHTML = colorize(r.stdout || r.stderr);
+  el.scrollTop = el.scrollHeight;
+}
+
+document.getElementById('btn-log-refresh').addEventListener('click', () => loadLog(curLog));
+document.getElementById('btn-log-bottom').addEventListener('click', () => {
+  const el = document.getElementById('log-output'); el.scrollTop = el.scrollHeight;
+});
+
+// ── Init ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildLogTabs();
+  loadStatus();
+  loadCfg();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+EVENT=push SHA=4603841864758edd24563f70c4b2e75955df3d5f
+checkout=success extract=failure/success
+marker=absent
+.git
+.github
+.workflow-status.txt
+CHANGELOG.md
+Log
+META-INF
+README.md
+SKILL.md
+customize.sh
+logs
+magisk-module-builder.skill
+module.prop
+post-fs-data.sh
+scripts
+sd-mounter-v1.5.zip
+service.sh
+skill-magisk-module-builder
+webroot

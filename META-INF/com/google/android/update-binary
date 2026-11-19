@@ -1,0 +1,24 @@
+#!/sbin/sh
+SKIPUNZIP=1
+unzip -o "$ZIPFILE" 'module.prop'      -d "$MODPATH" >&2
+unzip -o "$ZIPFILE" 'service.sh'       -d "$MODPATH" >&2
+unzip -o "$ZIPFILE" 'post-fs-data.sh'  -d "$MODPATH" >&2
+unzip -o "$ZIPFILE" 'customize.sh'     -d "$MODPATH" >&2
+unzip -o "$ZIPFILE" 'scripts/*'        -d "$MODPATH" >&2
+unzip -o "$ZIPFILE" 'webroot/*'        -d "$MODPATH" >&2
+unzip -o "$ZIPFILE" 'logs/*'           -d "$MODPATH" >&2
+
+set_perm_recursive "$MODPATH/scripts" root root 0755 0755
+set_perm "$MODPATH/service.sh"       root root 0755
+set_perm "$MODPATH/post-fs-data.sh"  root root 0755
+set_perm "$MODPATH/customize.sh"     root root 0755
+
+mkdir -p "$MODPATH/logs"
+
+# Ensure mount points exist on device
+mkdir -p /mnt/ext4sd
+mkdir -p /mnt/media_rw/6603-7A19
+
+ui_print "- SD Mounter v1.0 installed"
+ui_print "- Device: $(getprop ro.product.model)"
+ui_print "- Reboot puis ouvrir MMRL > SD Mounter"
