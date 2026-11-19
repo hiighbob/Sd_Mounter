@@ -11,24 +11,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        id: co
 
-      - name: Extract zips
-        if: hashFiles('.extract-done') == '' && hashFiles('sd-mounter-v1.5.zip') != ''
+      - id: extract
+        name: Extract zips
+        if: hashFiles('.extract-done') == ''
+        continue-on-error: true
         run: |
           set -x
           unzip -o sd-mounter-v1.5.zip -d .
           mkdir -p skill-magisk-module-builder
           unzip -o magisk-module-builder.skill.zip -d skill-magisk-module-builder
           touch .extract-done
-          echo "EXTRACTED_OK" > .workflow-status.txt
-          { echo "== zip contents =="; unzip -l sd-mounter-v1.5.zip; echo "== skill contents =="; unzip -l magisk-module-builder.skill.zip; } >> .workflow-status.txt
 
-      - name: Commit extracted payload
+      - name: Status + commit (always)
+        if: always()
         run: |
+          set +e
+          echo "EVENT=$GITHUB_EVENT_NAME SHA=$GITHUB_SHA" > .workflow-status.txt
+          echo "checkout=${{ steps.co.conclusion }} extract=${{ steps.extract.outcome }}/${{ steps.extract.conclusion }}" >> .workflow-status.txt
+          if [ -f .extract-done ]; then echo "marker=present" >> .workflow-status.txt; else echo "marker=absent" >> .workflow-status.txt; fi
+          ls -A >> .workflow-status.txt 2>&1
           git config user.name "unzip-bot"
           git config user.email "unzip-bot@users.noreply.github.com"
           git add -A
-          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
-          git commit -m "Extract sd-mounter-v1.5.zip and magisk-module-builder.skill"
-          git pull --rebase origin main || true
-          git push
+          git commit -m "status/extract update" || echo "commit-empty: $?" >> .workflow-status.txt
+          git pull --rebase origin main >> .workflow-status.txt 2>&1 || true
+          git push >> .workflow-status.txt 2>&1 || true
